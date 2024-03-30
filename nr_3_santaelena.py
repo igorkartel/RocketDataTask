@@ -1,12 +1,11 @@
 import json
 import requests
 from bs4 import BeautifulSoup
+from nr_3_santaelena_coordinates import coords_medellin, coords_bogota, coords_monteria, coords_pereira, coords_barranquilla
 
 
 # На сайте находим нужные нам страницы по каждому городу, которые отдают данные о магазинах
-# К сожалению, мне не удалось извлечь координаты, поэтому везде установил для них значение None.
-# Я нашел для каждого города ссылку на карту с магазинами, но пока не удается найти, где там отдаются их координаты
-# Записываем адреса страниц в переменные
+# Записываем адреса страниц в переменные, импортируем списки координат для каждого города из отдельного модуля
 # Создаем отдельную функцию для обработки каждого города, т.к. страница каждого города формирует данные по-разному
 # и к обработке каждой страницы нужен свой подход
 # В каждой функции создаем объект BeautifulSoup и используем его для работы с каждым документом
@@ -18,7 +17,7 @@ barranquilla = "https://www.santaelena.com.co/tiendas-pasteleria/nuestra-pastele
 
 
 # Функция для города Medellin
-def loc_medellin(url):
+def loc_medellin(url, coord_list):
     # Объявляем пустой список для будущего добавления в него всех адресов города
     all_locations = []
 
@@ -54,7 +53,7 @@ def loc_medellin(url):
             phones = a[1].replace("Teléfono:", "").strip()
             working_hours = a[2:]
 
-            # Добавляем их в словарь
+            # Добавляем их в словарь. Координатам присваиваем None, т.к. они будут обрабатываться далее
             location.update({"address": address,
                             "latlon": None,
                             "phones": phones,
@@ -65,11 +64,16 @@ def loc_medellin(url):
         all_locations.append(location)
         locations = [item for item in all_locations if item]
 
+    # Обновляем пару ключ-значение с координатами для каждого магазина
+    if len(locations) == len(coord_list):
+        for item, dictionary in enumerate(locations):
+            dictionary["latlon"] = coord_list[item]
+
     return locations
 
 
 # Функция для города Bogota
-def loc_bogota(url):
+def loc_bogota(url, coord_list):
     # Объявляем пустой список для будущего добавления в него всех адресов города
     all_locations = []
 
@@ -95,13 +99,14 @@ def loc_bogota(url):
             a = place_info.text.strip().split("Horario de atención:")
 
             # Находим и извлекаем адрес, телефон и рабочее время, преобразуем в нужный формат
+            # На странице Боготы нет телефонов, поэтому присваиваем None
             address = "Bogotá, " + a[0].replace("Dirección:", "").strip()
             phones = None
             working_hours = a[1:]
             if "m.Domingo" in working_hours[0]:
                 working_hours = working_hours[0].replace("m.Domingo", "m.---Domingo").split("---")
 
-            # Добавляем их в словарь
+            # Добавляем их в словарь. Координатам присваиваем None, т.к. они будут обрабатываться далее
             location.update({"address": address,
                             "latlon": None,
                             "phones": phones,
@@ -112,11 +117,16 @@ def loc_bogota(url):
         all_locations.append(location)
         locations = [item for item in all_locations if item]
 
+    # Обновляем пару ключ-значение с координатами для каждого магазина
+    if len(locations) == len(coord_list):
+        for item, dictionary in enumerate(locations):
+            dictionary["latlon"] = coord_list[item]
+
     return locations
 
 
 # Функция для города Monteria
-def loc_monteria(url):
+def loc_monteria(url, coord_list):
     # Объявляем пустой список для будущего добавления в него всех адресов города
     all_locations = []
 
@@ -147,7 +157,7 @@ def loc_monteria(url):
             working_hours = a[2:]
             working_hours = working_hours[0].replace("m.Domingos", "m.---Domingos").split("---")
 
-            # Добавляем их в словарь
+            # Добавляем их в словарь. Координатам присваиваем None, т.к. они будут обрабатываться далее
             location.update({"address": address,
                             "latlon": None,
                             "phones": phones,
@@ -158,11 +168,16 @@ def loc_monteria(url):
         all_locations.append(location)
         locations = [item for item in all_locations if item]
 
+    # Обновляем пару ключ-значение с координатами для каждого магазина
+    if len(locations) == len(coord_list):
+        for item, dictionary in enumerate(locations):
+            dictionary["latlon"] = coord_list[item]
+
     return locations
 
 
 # Функция для города Pereira
-def loc_pereira(url):
+def loc_pereira(url, coord_list):
     # Объявляем пустой список для будущего добавления в него всех адресов города
     all_locations = []
 
@@ -192,7 +207,7 @@ def loc_pereira(url):
             phones = a[1].strip()
             working_hours = a[2:]
 
-            # Добавляем их в словарь
+            # Добавляем их в словарь. Координатам присваиваем None, т.к. они будут обрабатываться далее
             location.update({"address": address,
                             "latlon": None,
                             "phones": phones,
@@ -203,11 +218,16 @@ def loc_pereira(url):
         all_locations.append(location)
         locations = [item for item in all_locations if item]
 
+    # Обновляем пару ключ-значение с координатами для каждого магазина
+    if len(locations) == len(coord_list):
+        for item, dictionary in enumerate(locations):
+            dictionary["latlon"] = coord_list[item]
+
     return locations
 
 
 # Функция для города Barranquilla
-def loc_barranquilla(url):
+def loc_barranquilla(url, coord_list):
     # Объявляем пустой список для будущего добавления в него всех адресов города
     all_locations = []
 
@@ -238,7 +258,7 @@ def loc_barranquilla(url):
             working_hours = a[2:]
             working_hours = working_hours[0].replace("m.Domingos", "m.---Domingos").split("---")
 
-            # Добавляем их в словарь
+            # Добавляем их в словарь. Координатам присваиваем None, т.к. они будут обрабатываться далее
             location.update({"address": address,
                             "latlon": None,
                             "phones": phones,
@@ -249,15 +269,20 @@ def loc_barranquilla(url):
         all_locations.append(location)
         locations = [item for item in all_locations if item]
 
+    # Обновляем пару ключ-значение с координатами для каждого магазина
+    if len(locations) == len(coord_list):
+        for item, dictionary in enumerate(locations):
+            dictionary["latlon"] = coord_list[item]
+
     return locations
 
 
-# Вызываем функцию для кадого города, передавая через параметр их адреса
-city_1 = loc_medellin(medellin)
-city_2 = loc_bogota(bogota)
-city_3 = loc_monteria(monteria)
-city_4 = loc_pereira(pereira)
-city_5 = loc_barranquilla(barranquilla)
+# Вызываем функцию для кадого города, передавая через параметр адреса страниц и списки координат
+city_1 = loc_medellin(medellin, coords_medellin)
+city_2 = loc_bogota(bogota, coords_bogota)
+city_3 = loc_monteria(monteria, coords_monteria)
+city_4 = loc_pereira(pereira, coords_pereira)
+city_5 = loc_barranquilla(barranquilla, coords_barranquilla)
 
 # Формируем общий список всех локаций всех городов
 all_cities = city_1 + city_2 + city_3 + city_4 + city_5

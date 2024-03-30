@@ -81,7 +81,7 @@ def yapdomik_locations(url):
     return locations
 
 
-# Вызываем функцию для кадого магазина, передавая через параметр их адреса
+# Вызываем функцию для кадого магазина, передавая через параметр адреса страниц
 yapdomik_locations(achinsk)
 yapdomik_locations(berdsk)
 yapdomik_locations(krasnoyarsk)
