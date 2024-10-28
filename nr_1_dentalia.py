@@ -1,71 +1,93 @@
+import aiofiles
+import asyncio
 import json
-import requests
+
+from aiohttp import ClientSession
 from bs4 import BeautifulSoup
 
-# На сайте находим нужную нам страницу, которая отдает данные о клиниках
-# Через DevTools находим нужный нам файл с данными о клиниках, которые формируются динамически
-# Извлекаем его, создаем объект BeautifulSoup и используем его для работы с документом
-data = requests.post("https://dentalia.com/clinica/?nocache=1711652476",
-                     data={
-                         "action": "jet_engine_ajax",
-                         "handler": "get_listing",
-                         "page_settings[post_id]": "5883",
-                         "page_settings[queried_id]": "344706|WP_Post",
-                         "page_settings[element_id]": "c1b6043",
-                         "page_settings[page]": "1",
-                         "listing_type": "elementor",
-                         "isEditMode": "false"
-                     })
 
-html_content = data.json()["data"]["html"]
+def format_coordinates(coordinates):
+    try:
+        latlon = [float(item.strip()) for item in coordinates]
+        return latlon
 
-soup = BeautifulSoup(html_content, "html.parser")
+    except ValueError as e:
+        print(f"Error while coordinates' formatting: {e}")
+        return None
 
-# Объявляем пустой список для будущего добавления в него всех адресов
-locations = []
 
-# Исследуем документ и находим все блоки, где лежат нужные нам данные
-clinics = soup.find_all('div', {"class": "elementor elementor-330"})
+def format_working_hours(time):
+    try:
+        lst = []
+        for t in time:
+            aaa = t.find_all("div")
+            lst.append(aaa)
+        working_hours = lst[1][1].text.strip()
+        return working_hours
 
-# В каждом найденном блоке находим нужные нам данные, приводим их в требуемый формат
-for clinic in clinics:
-    # Находим и извлекаем название клиники
-    name = clinic.find('h3', {"class": "elementor-heading-title elementor-size-default"}).text.strip()
+    except Exception as e:
+        print(f"Error while working hours' formatting: {e}")
+        return None
 
-    # Находим блок, где лежат данные об адресе, телефоне, рабочем времени и координатах
-    contact_info = clinic.find_all('div', {"class": "jet-listing-dynamic-field__content"})
 
-    # Находим и извлекаем адрес, преобразуем в нужный формат
-    address = contact_info[0].text.strip()
+async def parse_dentalia(url: str, locations):
+    try:
+        async with ClientSession() as session:
+            async with session.get(url=url) as response:
+                if response.status != 200:
+                    print(f"Failed to fetch {url}: status code {response.status}")
+                    return locations
 
-    # Находим и извлекаем номер телефона, преобразуем в нужный формат
-    phones = contact_info[1].text
-    phones = phones.replace("Teléfono(s):", "").strip().split("\r\n")
-    phones = [item.strip() for item in phones]
+                soup = BeautifulSoup(await response.text(), "html.parser")
+                clinics_geodata = soup.find_all('div', {"class": "dg-map_clinic-card w-dyn-item"})
 
-    # Находим и извлекаем рабочее время, преобразуем в нужный формат
-    working_hours = contact_info[2].text
-    working_hours = working_hours.replace("Horario:", "").strip().split("\r\n")
-    working_hours = [item.strip() for item in working_hours]
+                for clinic in clinics_geodata:
+                    name = clinic.get("m8l-c-filter-name").strip()
 
-    # Находим и извлекаем координаты, преобразуем в нужный формат
-    gps_link = clinic.find('a', {"class": "elementor-button-link elementor-button elementor-size-md"})["href"]
-    if "@" in gps_link:
-        coordinates = gps_link.split('@')[1].split('/')[0].split(",")[0:2]
-        coordinates = [float(item) for item in coordinates]
-    else:
-        coordinates = None
+                    address = clinic.get("m8l-c-filter-location").strip()
 
-    # Формируем словарь со всеми данными о клинике и добавляем его в список локаций
-    location = {"name": name,
-                "address": address,
-                "latlon": coordinates,
-                "phones": phones,
-                "working_hours": working_hours,
-                }
+                    coordinates = clinic.get("m8l-c-list-coord").split(",")
+                    latlon = format_coordinates(coordinates)
 
-    locations.append(location)
+                    time = clinic.find_all('div', class_='dg-map_clinic-info_row')
+                    working_hours = format_working_hours(time)
 
-# Когда список сформирован, записываем все данные в json-файл
-with open('dentalia.json', 'w', encoding="utf-8") as file:
-    json.dump(locations, file, ensure_ascii=False, indent=4)
+                    phones = clinic.find('a', {"m8l-name": "telefono"}).text.strip()
+
+                    location = {
+                        "name": name or None,
+                        "address": address or None,
+                        "latlon": latlon,
+                        "phones": phones or None,
+                        "working_hours": working_hours,
+                    }
+
+                    locations.append(location)
+
+            return locations
+
+    except Exception as e:
+        print(f"Failed to parse data from website: {e}")
+        return locations
+
+
+async def write_to_json_file(locations):
+    try:
+        async with aiofiles.open('dentalia.json', 'w', encoding="utf-8") as file:
+            await file.write(json.dumps(locations, ensure_ascii=False, indent=4))
+
+    except (OSError, IOError) as e:
+        print(f"Error while writing to a file: {e}")
+
+
+async def main():
+    locations = []
+    url = "https://www.dentalia.com/clinicas"
+
+    locations = await asyncio.create_task(parse_dentalia(url, locations))
+
+    await write_to_json_file(locations)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
