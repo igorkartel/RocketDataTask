@@ -1,5 +1,3 @@
-from pprint import pprint
-
 import aiofiles
 import asyncio
 import io
@@ -7,7 +5,7 @@ import json
 import requests
 
 from aiohttp import ClientSession
-from lxml import etree, html
+from lxml import etree
 
 
 def format_working_hours(schedule):
@@ -37,7 +35,8 @@ def format_working_hours(schedule):
         return None
 
 
-async def parse_yapdomik(url, city_locations=[]):
+async def parse_yapdomik(url):
+    city_locations = []
     try:
         async with ClientSession() as session:
             async with session.get(url=url) as response:
@@ -110,7 +109,8 @@ async def parse_name_and_city_for_berdsk(session, url="https://berdsk.yapdomik.r
         return None, None
 
 
-async def parse_yapdomik_berdsk(url, city_locations = []):
+async def parse_yapdomik_berdsk(url):
+    city_locations = []
     try:
         async with ClientSession() as session:
             name, city = await parse_name_and_city_for_berdsk(session)
@@ -169,7 +169,6 @@ async def main():
         "https://omsk.yapdomik.ru/about",
         "https://tomsk.yapdomik.ru/about",
     ]
-    locations = []
 
     tasks = [
         asyncio.create_task(parse_yapdomik_berdsk(url)) if "berdsk" in url
@@ -179,10 +178,10 @@ async def main():
 
     results = await asyncio.gather(*tasks)
 
-    locations.extend(results[1])
-    locations.extend(results[-1])
+    locations = [res for result in results for res in result]
 
     await write_to_json_file(locations)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
